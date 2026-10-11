@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LangChain / LLM Learning Notes: Tokenization &amp; Embeddings</title>
+<style>
+:root {
+  --background: #ffffff;
+  --primary: #2b2b2b;
+  --text: #242424;
+  --muted-surface: #f5f5f5;
+  --border: #dedede;
+}
+* { box-sizing: border-box; }
+html { background: var(--background); }
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.7;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  color: var(--text);
+  background: var(--background);
+}
+h1, h2, h3, strong { color: var(--primary); }
+h1 { border-bottom: 2px solid var(--primary); padding-bottom: 12px; }
+h2 { margin-top: 2em; }
+pre {
+  overflow-x: auto;
+  background: var(--muted-surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  padding: 16px;
+  border-radius: 6px;
+  color: var(--text);
+}
+code { font-family: Consolas, "Courier New", monospace; }
+:not(pre) > code {
+  background: #f0f0f0;
+  color: var(--primary);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+th, td {
+  border: 1px solid var(--border);
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--primary); color: #ffffff; }
+a { color: var(--primary); }
+</style>
+</head>
+<body>
+<h1>LangChain / LLM Learning Notes: Tokenization &amp; Embeddings</h1>
+<p>These notes cover the two concepts in your screenshots with simple explanations, variations, commented Python code, and examples you can run.</p>
+<h2>1. Tokenization using <code>tiktoken</code></h2>
+<p>Tokenization converts text into tokens (integer IDs) that an LLM can process.</p>
+<p>For example:</p>
+<p><code>"The cat sat on the mat"</code></p>
+<p>The tokenizer splits the text into tokens and maps each token to an ID. A token might represent a whole word, part of a word, punctuation, or whitespace.</p>
+<p><strong>Input text</strong></p><p><code>"The cat sat on the mat"</code></p>
+<p><strong>Tokenizer</strong></p><p>Splits text into tokens</p>
+<p><strong>Token IDs</strong></p><p><code>[976, 9059, 10139, ...]</code></p>
+<p>The exact token IDs depend on the tokenizer encoding. The numbers shown in your screenshot are examples, not universal IDs for every model.</p>
+<h3>Main code: <code>tokenization.py</code></h3>
+<p>Install the package:</p>
+<pre><code>pip install tiktoken</code></pre>
+<pre><code>import tiktoken
+
+# Get the tokenizer encoding associated with GPT-4o
+encoder = tiktoken.encoding_for_model("gpt-4o")
+
+# Number of token IDs in this encoding's vocabulary
+print("Vocabulary size:", encoder.n_vocab)
+
+# Text to tokenize
+text = "The cat sat on the mat"
+
+# Convert text into a list of integer token IDs
+tokens = encoder.encode(text)
+print("Tokens:", tokens)
+
+# Convert the token IDs back into readable text
+decoded = encoder.decode(tokens)
+print("Decoded:", decoded)
+
+# Count tokens, useful for estimating input size
+print("Token count:", len(tokens))</code></pre>
+<p>Expected output structure:</p>
+<pre><code>Vocabulary size: &lt;vocabulary size&gt;
+Tokens: [integer IDs ...]
+Decoded: The cat sat on the mat
+Token count: &lt;number of tokens&gt;</code></pre>
+<p>Your actual token IDs and vocabulary size should come from running the code. <code>n_vocab</code> is the encoding's vocabulary size, not the number of tokens in your sentence.</p>
+<h3>Important tokenization variations</h3>
+<p><strong>A. Encode and decode</strong></p>
+<pre><code># Text -&gt; token IDs
+tokens = encoder.encode("Hello world")
+print(tokens)
+
+# Token IDs -&gt; text
+text = encoder.decode(tokens)
+print(text)</code></pre>
+<p><strong>B. Encode different types of text</strong></p>
+<pre><code># Different text can produce different token counts
+examples = [
+    "Hello",
+    "Hello world!",
+    "Artificial intelligence",
+    "Tokenization is useful for LLMs."
+]
+for text in examples:
+    tokens = encoder.encode(text)
+    print(f"Text: {text}")
+    print(f"Tokens: {tokens}")
+    print(f"Count: {len(tokens)}\n")</code></pre>
+<p><strong>C. Get individual token pieces</strong></p>
+<p>Sometimes you want to see the text represented by each token, rather than just its integer ID.</p>
+<pre><code>text = "The cat sat on the mat"
+
+# Convert the text into token IDs
+tokens = encoder.encode(text)
+
+# Decode each token separately to inspect its text piece
+for token_id in tokens:
+    print(token_id, "-&gt;", encoder.decode([token_id]))</code></pre>
+<p><strong>D. Compare tokenizers</strong></p>
+<pre><code>import tiktoken
+
+# Different models may use different encodings
+for model in ["gpt-4o", "gpt-4"]:
+    enc = tiktoken.encoding_for_model(model)
+    tokens = enc.encode("Learning LLMs is fun!")
+    print(model, len(tokens), tokens)</code></pre>
+<p>Models may share an encoding, so changing the model name does not necessarily change the token IDs.</p>
+<h3>Key points to remember</h3>
+<ul>
+<li>Token ID: An integer representing a token.</li>
+<li>Vocabulary size: The number of token IDs available in an encoding.</li>
+<li>Token count: The number of tokens in your particular text.</li>
+<li>Encoding: Converts text into token IDs.</li>
+<li>Decoding: Converts token IDs back to text.</li>
+<li>Why it matters: Token counts affect context-window usage, API cost, and how much text you can send to a model.</li>
+</ul>
+<h2>2. Embeddings</h2>
+<p>An embedding converts text into a list of numbers (a vector) that represents its semantic meaning.</p>
+<p>Unlike tokenization, which converts text into discrete token IDs, embeddings produce numerical representations that can help you compare meaning.</p>
+<p>For example, these sentences have similar meanings:</p>
+<ul><li>"I love programming."</li><li>"Coding is something I enjoy."</li></ul>
+<p>Their embeddings may be close together in vector space.</p>
+<p><strong>Input text</strong></p><p><code>"The Eiffel Tower is in Paris"</code></p>
+<p><strong>Embedding model</strong></p><p><code>text-embedding-3-small</code></p>
+<p><strong>Vector</strong></p><p><code>[-0.012, 0.034, 0.008, ...]</code></p>
+<p>Illustrative values; actual vectors have many dimensions.</p>
+<h3>Main code: <code>embedding.py</code></h3>
+<p>Install the required packages:</p>
+<pre><code>pip install openai python-dotenv</code></pre>
+<p>Create a <code>.env</code> file:</p>
+<pre><code>OPENAI_API_KEY=your_api_key_here</code></pre>
+<pre><code>from openai import OpenAI
+from dotenv import load_dotenv
+
+# Load OPENAI_API_KEY from the .env file
+load_dotenv()
+
+# The SDK reads the API key from the environment
+client = OpenAI()
+
+text = (
+    "Eiffel Tower is in Paris and is a famous landmark. "
+    "It is 324 meters tall."
+)
+
+# Generate an embedding for the input text
+response = client.embeddings.create(
+    input=text,
+    model="text-embedding-3-small"
+)
+
+# Extract the numerical vector from the response
+vector = response.data[0].embedding
+print("Embedding:", vector)
+print("Vector dimensions:", len(vector))</code></pre>
+<p>The <code>text-embedding-3-small</code> model produces a vector with 1,536 dimensions by default. The output is a list of floating-point numbers, not readable text.</p>
+<h3>Embedding variations</h3>
+<p><strong>A. Embed multiple sentences in one API request</strong></p>
+<p>Useful when processing several articles or documents.</p>
+<pre><code>texts = [
+    "I love Python programming.",
+    "JavaScript is used for web development.",
+    "The Eiffel Tower is in Paris."
+]
+response = client.embeddings.create(
+    input=texts,  # A list of texts
+    model="text-embedding-3-small"
+)
+# Each result contains an embedding for one input
+for item in response.data:
+    print("Input index:", item.index)
+    print("Vector dimensions:", len(item.embedding))</code></pre>
+<p><strong>B. Reduce the number of dimensions</strong></p>
+<p>You can request a smaller vector to reduce storage requirements.</p>
+<pre><code>response = client.embeddings.create(
+    input="I am learning artificial intelligence.",
+    model="text-embedding-3-small",
+    dimensions=512  # Request a 512-dimensional vector
+)
+vector = response.data[0].embedding
+print("Dimensions:", len(vector))  # 512</code></pre>
+<p><strong>C. Compare two embeddings</strong></p>
+<p>A common application is semantic similarity: checking how closely two sentences relate in meaning.</p>
+<p>Install NumPy:</p>
+<pre><code>pip install numpy</code></pre>
+<pre><code>import numpy as np
+
+texts = [
+    "I love programming.",
+    "I enjoy writing code.",
+    "The weather is sunny today."
+]
+response = client.embeddings.create(
+    input=texts,
+    model="text-embedding-3-small"
+)
+# Extract vectors in the same order as the input
+v1, v2, v3 = [
+    np.array(item.embedding) for item in response.data
+]
+def cosine_similarity(a, b):
+    # Measure the angle-based similarity between two vectors
+    return np.dot(a, b) / (
+        np.linalg.norm(a) * np.linalg.norm(b)
+    )
+print("Similar meanings:", cosine_similarity(v1, v2))
+print("Different topics:", cosine_similarity(v1, v3))</code></pre>
+<p>The first pair would generally be expected to have greater semantic similarity. The exact scores depend on the model and text.</p>
+<h3>What are embeddings used for?</h3>
+<table><thead><tr><th>Use case</th><th>How embeddings help</th></tr></thead><tbody>
+<tr><td>Semantic search</td><td>Find documents by meaning, not just exact keywords</td></tr>
+<tr><td>RAG</td><td>Retrieve relevant document chunks for an LLM</td></tr>
+<tr><td>Recommendations</td><td>Find related articles, products, or content</td></tr>
+<tr><td>Clustering</td><td>Group similar documents together</td></tr>
+<tr><td>Classification</td><td>Use vector representations as features</td></tr>
+</tbody></table>
+<h2>3. Tokenization vs embeddings</h2>
+<table><thead><tr><th>Feature</th><th>Tokenization</th><th>Embeddings</th></tr></thead><tbody>
+<tr><td>Output</td><td>Integer IDs</td><td>Floating-point vectors</td></tr>
+<tr><td>Main purpose</td><td>Represent text as tokens</td><td>Represent semantic information</td></tr>
+<tr><td>Example</td><td><code>[976, 9059, ...]</code></td><td><code>[-0.012, 0.034, ...]</code></td></tr>
+<tr><td>Common tool</td><td><code>tiktoken</code></td><td>OpenAI Embeddings API</td></tr>
+<tr><td>Requires an API call?</td><td>No, for local <code>tiktoken</code> usage</td><td>Yes, for the OpenAI example</td></tr>
+</tbody></table>
+<p>Remember this distinction: Tokenization prepares text in a token-based format for language-model processing. Embeddings represent text as vectors that are useful for semantic comparison and retrieval.</p>
+<p>A natural next exercise is to combine both concepts: tokenize a document to understand its size, generate embeddings for its chunks, and compare those chunks with a user query. That's the foundation of a simple RAG application.</p>
+</body>
+</html>
